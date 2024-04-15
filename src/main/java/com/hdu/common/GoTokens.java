@@ -1,0 +1,154 @@
+package com.hdu.common;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class GoTokens {
+
+    // 关键字
+    public static final byte ID = 0;
+    public static final byte DIGIT = 1;
+    public static final byte BREAK = 2;
+    public static final byte CASE = 3;
+    public static final byte CHAN = 4;
+    public static final byte CONST = 5;
+    public static final byte CONTINUE = 6;
+    public static final byte DEFAULT = 7;
+    public static final byte DEFER = 8;
+    public static final byte ELSE = 9;
+    public static final byte FALL_THROUGH = 10;
+    public static final byte FOR = 11;
+    public static final byte FUNC = 12;
+    public static final byte GO = 13;
+    public static final byte GOTO = 14;
+    public static final byte IF = 15;
+    public static final byte IMPORT = 16;
+    public static final byte INTERFACE = 17;
+    public static final byte MAP = 18;
+    public static final byte PACKAGE = 19;
+    public static final byte RANGE = 20;
+    public static final byte RETURN = 21;
+    public static final byte SELECT = 22;
+    public static final byte STRUCT = 23;
+    public static final byte SWITCH = 24;
+    public static final byte TYPE = 25;
+    public static final byte VAR = 26;
+    public static final byte PLUS = 27;
+    public static final byte MINUS = 28;
+    public static final byte STAR = 29;
+    public static final byte DIV = 30;
+    public static final byte MOD = 31;
+    public static final byte PLUS_PLUS = 32;
+    public static final byte MINUS_MINUS = 33;
+    public static final byte EQUAL = 34;
+    public static final byte NOT_EQUAL = 35;
+    public static final byte GREATER = 36;
+    public static final byte LESS = 37;
+    public static final byte GREATER_EQUAL = 38;
+    public static final byte LESS_EQUAL = 39;
+
+    public static final byte BOUND_LEFT = 40;
+    public static final byte BOUND_RIGHT = 41;
+
+    public static final byte AND = 42;
+    public static final byte OR = 43;
+    public static final byte NOT = 44;
+    public static final byte CARET = 45;
+    public static final byte LEFT_SHIFT = 46;
+    public static final byte RIGHT_SHIFT = 47;
+    public static final byte ASSIGN = 48;
+    public static final byte PLUS_ASSIGN = 49;
+    public static final byte MINUS_ASSIGN = 50;
+    public static final byte STAR_ASSIGN = 51;
+    public static final byte DIV_ASSIGN = 52;
+    public static final byte MOD_ASSIGN = 53;
+    public static final byte LEFT_SHIFT_ASSIGN = 54;
+    public static final byte RIGHT_SHIFT_ASSIGN = 55;
+    public static final byte AND_ASSIGN = 56;
+    public static final byte XOR_ASSIGN = 57;
+    public static final byte OR_ASSIGN = 58;
+    public static final byte QUESTION = 59;
+    public static final byte COLON = 60;
+    public static final byte SEMI = 61;
+    public static final byte COMMA = 62;
+    public static final byte DOT = 63;
+    public static final byte LEFT_SMALL_BRACKET = 64;
+    public static final byte LEFT_MID_BRACKET = 65;
+    public static final byte LEFT_LARGE_BRACKET = 66;
+    public static final byte RIGHT_SMALL_BRACKET = 67;
+    public static final byte RIGHT_MID_BRACKET = 68;
+    public static final byte RIGHT_LARGE_BRACKET = 69;
+
+    public static Map<String, Byte> tokenMap = new HashMap<>();
+    static {
+        tokenMap.put("break", BREAK);
+        tokenMap.put("case", CASE);
+        tokenMap.put("chan", CHAN);
+        tokenMap.put("const", CONST);
+        tokenMap.put("continue", CONTINUE);
+        tokenMap.put("default", DEFAULT);
+        tokenMap.put("defer", DEFER);
+        tokenMap.put("else", ELSE);
+        tokenMap.put("fallthrough", FALL_THROUGH);
+        tokenMap.put("for", FOR);
+        tokenMap.put("func", FUNC);
+        tokenMap.put("go", GO);
+        tokenMap.put("goto", GOTO);
+        tokenMap.put("if", IF);
+        tokenMap.put("import", IMPORT);
+        tokenMap.put("interface", INTERFACE);
+        tokenMap.put("map", MAP);
+        tokenMap.put("package", PACKAGE);
+        tokenMap.put("range", RANGE);
+        tokenMap.put("return", RETURN);
+        tokenMap.put("select", SELECT);
+        tokenMap.put("struct", STRUCT);
+        tokenMap.put("switch", SWITCH);
+        tokenMap.put("type", TYPE);
+        tokenMap.put("var", VAR);
+        tokenMap.put("+", PLUS);
+        tokenMap.put("-", MINUS);
+        tokenMap.put("*", STAR);
+        tokenMap.put("/", DIV);
+        tokenMap.put("%", MOD);
+        tokenMap.put("++", PLUS_PLUS);
+        tokenMap.put("--", MINUS_MINUS);
+        tokenMap.put("==", EQUAL);
+        tokenMap.put("!=", NOT_EQUAL);
+        tokenMap.put(">", GREATER);
+        tokenMap.put("<", LESS);
+        tokenMap.put(">=", GREATER_EQUAL);
+        tokenMap.put("<=", LESS_EQUAL);
+        tokenMap.put("&", AND);
+        tokenMap.put("|", OR);
+        tokenMap.put("!", NOT);
+        tokenMap.put("^", CARET);
+        tokenMap.put("<<", LEFT_SHIFT);
+        tokenMap.put(">>", RIGHT_SHIFT);
+        tokenMap.put("=", ASSIGN);
+        tokenMap.put("+=", PLUS_ASSIGN);
+        tokenMap.put("-=", MINUS_ASSIGN);
+        tokenMap.put("*=", STAR_ASSIGN);
+        tokenMap.put("/=", DIV_ASSIGN);
+        tokenMap.put("%=", MOD_ASSIGN);
+        tokenMap.put("<<=", LEFT_SHIFT_ASSIGN);
+        tokenMap.put(">>=", RIGHT_SHIFT_ASSIGN);
+        tokenMap.put("&=", AND_ASSIGN);
+        tokenMap.put("^=", XOR_ASSIGN);
+        tokenMap.put("|=", OR_ASSIGN);
+        tokenMap.put("?", QUESTION);
+        tokenMap.put(":", COLON);
+        tokenMap.put(";", SEMI);
+        tokenMap.put(",", COMMA);
+        tokenMap.put(".", DOT);
+        tokenMap.put("(", LEFT_SMALL_BRACKET);
+        tokenMap.put("[", LEFT_MID_BRACKET);
+        tokenMap.put("{", LEFT_LARGE_BRACKET);
+        tokenMap.put(")", RIGHT_SMALL_BRACKET);
+        tokenMap.put("]", RIGHT_MID_BRACKET);
+        tokenMap.put("}", RIGHT_LARGE_BRACKET);
+    }
+
+
+
+}
