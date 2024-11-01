@@ -65,6 +65,30 @@ public class JavaWord extends Word {
                                     List<String> code = lines.subList(measure.getStartLine(), measure.getEndLine());
                                     code = code.parallelStream().map(String::trim).collect(Collectors.toList());
                                     code = code.parallelStream().filter(s->!s.matches(Constants.FILTER_WORDS_REGEX) && !s.isEmpty()).collect(Collectors.toList());
+
+                                    // 若当前行不以分号结尾，则将下一行合并到当前行
+                                    int combineLineIndex = 0;
+                                    while (combineLineIndex < code.size()){
+                                        // 若当前行是注释行，则跳过
+                                        if(code.get(combineLineIndex).startsWith("//")){
+                                            combineLineIndex++;
+                                            continue;
+                                        }
+                                        // 若当前为注释块的开始行，则跳过
+                                        if(code.get(combineLineIndex).startsWith("/*")){
+                                            while (!code.get(combineLineIndex).endsWith("*/") && combineLineIndex < code.size() - 1){
+                                                combineLineIndex++;
+                                            }
+                                            combineLineIndex++;
+                                            continue;
+                                        }
+                                        while (!code.get(combineLineIndex).endsWith(";") && combineLineIndex < code.size() - 1){
+                                            code.set(combineLineIndex, code.get(combineLineIndex) + code.get(combineLineIndex + 1));
+                                            code.remove(combineLineIndex + 1);
+                                        }
+                                        combineLineIndex++;
+                                    }
+
                                     measure.setCode(code);
 
                                     if (Config.CompareType == 2){
