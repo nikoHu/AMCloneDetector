@@ -21,6 +21,8 @@ public class Config {
     public static String Language = "java";
     public static String Extensions = "java";
     public static String[] ExtensionsArray = null;
+    public static Float LineGapDisMax = 0.5f;
+    public static Float LineGapDisMin = 0.0f;
 
 
     /**
@@ -37,6 +39,8 @@ public class Config {
         properties.setProperty("open-string-hash", OpenStringHash.toString());
         properties.setProperty("language", Language);
         properties.setProperty("extensions", Extensions);
+        properties.setProperty("line-gap-dis-max", LineGapDisMax.toString());
+        properties.setProperty("line-gap-dis-min", LineGapDisMin.toString());
         FileWriter writer = new FileWriter(new File(CONFIG_FILE));
         properties.store(writer, "");
         writer.close();
@@ -61,5 +65,7 @@ public class Config {
         Language = properties.getProperty("language");
         Extensions = properties.getProperty("extensions");
         ExtensionsArray = Extensions.split(",");
+        LineGapDisMax = Float.parseFloat(properties.getProperty("line-gap-dis-max"));
+        LineGapDisMin = Float.parseFloat(properties.getProperty("line-gap-dis-min"));
     }
 }

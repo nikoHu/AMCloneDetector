@@ -26,7 +26,7 @@ public class TokenComparator implements Comparator{
         }
 
         int buffer = 10000;
-        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis);
+        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
         List<String> ids = generator.generate(buffer);
         int cnt = 0;
         while (ids.size() != 0){
@@ -39,7 +39,7 @@ public class TokenComparator implements Comparator{
                     Measure measure1 = measureList.get(id1);
                     Measure measure2 = measureList.get(id2);
                     float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                    if (lineGapDis >= Config.LineGapDis){
+                    if (lineGapDis < Config.LineGapDisMin || lineGapDis >= Config.LineGapDisMax){
                         return;
                     }
 
