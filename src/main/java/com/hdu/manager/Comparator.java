@@ -8,4 +8,6 @@ import java.util.List;
 public interface Comparator {
 
     List<Pair> findPairs(List<Measure> measureList);
+
+    List<Pair> findPairsByAsync(List<Measure> measureList);
 }
