@@ -115,7 +115,7 @@ public class SRCFProcessor {
         //寻找目标克隆对
         log.info("find pairs");
         List<Pair> pairList = comparator.findPairsByAsync(Measure.measureList);
-
+//        List<Pair> pairList = comparator.findPairs(Measure.measureList);
         //输出
         log.info("output pairs");
         try {

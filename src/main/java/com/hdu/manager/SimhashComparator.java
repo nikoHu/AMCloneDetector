@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +31,7 @@ public class SimhashComparator implements Comparator{
     private static AtomicLong dealCount = new AtomicLong(0);
 
     private static final List<Pair> allPairs = Collections.synchronizedList(new ArrayList<>());
+    CountDownLatch countDownLatch = new CountDownLatch(Config.ThreadNum);
 
     @Override
     public List<Pair> findPairs(List<Measure> measureList) {
@@ -105,7 +107,7 @@ public class SimhashComparator implements Comparator{
         if (measureList.size() < 2){
             return pairs;
         }
-        int buffer = 2;
+        int buffer = 10000;
         IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
 
         ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum); // 创建两个线程的线程池
@@ -117,12 +119,12 @@ public class SimhashComparator implements Comparator{
 
         // 等待所有线程完成
         try {
-            if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
+            countDownLatch.await();
         } catch (InterruptedException e) {
-            executor.shutdownNow();
+            e.printStackTrace();
         }
+        // 关闭线程池
+        executor.shutdown();
 
         // 输出整合后的所有 pairs
         return allPairs;
@@ -138,19 +140,21 @@ public class SimhashComparator implements Comparator{
             this.measureList = measureList;
         }
 
+        public List<String> generateIDs(){
+            List<String> ids = new ArrayList<>();
+            synchronized (generateIDsLock) {
+                ids = generator.generate(buffer);
+            }
+            return ids;
+        }
+
         @Override
         public void run() {
             List<String> ids = null;
             List<Pair> pairs = new ArrayList<>();
             // 全部id对的数量
-            long allCount = (long) measureList.size() * (measureList.size() - 1) / 2;
             int cnt = 0;
-            while (dealCount.get() < allCount) {
-                synchronized (generateIDsLock) {
-                    ids = generator.generate(buffer);
-                    dealCount.addAndGet(ids.size());
-                }
-
+            while ((ids=generateIDs()).size() != 0) {
                 ids.parallelStream().forEach(new Consumer<String>() {
                     @Override
                     public void accept(String s) {
@@ -207,6 +211,7 @@ public class SimhashComparator implements Comparator{
             } finally {
                 resultLock.unlock();
             }
+            countDownLatch.countDown();
         }
     }
 }
