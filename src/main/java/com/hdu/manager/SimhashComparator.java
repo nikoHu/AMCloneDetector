@@ -41,7 +41,7 @@ public class SimhashComparator implements Comparator{
             return pairs;
         }
 
-        int buffer = 10000;
+        int buffer = Config.Buffer;
         IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
         List<String> ids = generator.generate(buffer);
         int cnt = 0;
