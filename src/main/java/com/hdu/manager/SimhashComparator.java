@@ -107,7 +107,7 @@ public class SimhashComparator implements Comparator{
         if (measureList.size() < 2){
             return pairs;
         }
-        int buffer = 10000;
+        int buffer = Config.Buffer;
         IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
 
         ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum); // 创建两个线程的线程池

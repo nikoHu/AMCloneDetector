@@ -24,6 +24,7 @@ public class Config {
     public static Float LineGapDisMax = 0.5f;
     public static Float LineGapDisMin = 0.0f;
     public static Integer ThreadNum = 2;
+    public static Integer Buffer = 10000;
 
 
     /**
@@ -43,6 +44,7 @@ public class Config {
         properties.setProperty("line-gap-dis-max", LineGapDisMax.toString());
         properties.setProperty("line-gap-dis-min", LineGapDisMin.toString());
         properties.setProperty("thread-num", ThreadNum.toString());
+        properties.setProperty("buffer", Buffer.toString());
         FileWriter writer = new FileWriter(new File(CONFIG_FILE));
         properties.store(writer, "");
         writer.close();
@@ -70,5 +72,6 @@ public class Config {
         LineGapDisMax = Float.parseFloat(properties.getProperty("line-gap-dis-max"));
         LineGapDisMin = Float.parseFloat(properties.getProperty("line-gap-dis-min"));
         ThreadNum = Integer.parseInt(properties.getProperty("thread-num"));
+        Buffer = Integer.parseInt(properties.getProperty("buffer"));
     }
 }
