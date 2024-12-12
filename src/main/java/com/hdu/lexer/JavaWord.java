@@ -25,7 +25,9 @@ public class JavaWord extends Word {
         List<Token> tokenHashList = new ArrayList<>();
         Stack<Integer> stack = new Stack<>();
         Measure measure = null;
+        JavaLexer lexer = null;
         try {
+
             lexer = new JavaLexer(inputFileName);
             Token word = null;
             int innerClass = 0;

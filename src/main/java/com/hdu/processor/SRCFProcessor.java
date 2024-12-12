@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -77,10 +80,24 @@ public class SRCFProcessor {
 
         //加载measureList
         log.info("loading measure list");
+        ExecutorService executorService = Executors.newFixedThreadPool(1);
+        List<File> finalFiles = files;
         Word word = initWord();
         for(int i=0; i<files.size(); i++){
-            log.info(String.format("%.2f%%", i*100f / files.size()));
-            word.segment(files.get(i).getAbsolutePath(), i);
+            final int index = i;
+            executorService.submit(() -> {
+                log.info(Thread.currentThread().getName() + ' ' + String.format("%.2f%%", index * 100f / finalFiles.size()));
+                word.segment(finalFiles.get(index).getAbsolutePath(), index);
+            });
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(60, TimeUnit.MINUTES)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
         }
 
         //输出measureList
