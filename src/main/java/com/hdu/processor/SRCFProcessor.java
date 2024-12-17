@@ -88,7 +88,7 @@ public class SRCFProcessor {
 
         //加载measureList
         log.info("loading measure list");
-        ExecutorService executorService = Executors.newFixedThreadPool(1);
+        ExecutorService executorService = Executors.newFixedThreadPool(Config.ThreadNum);
         List<File> finalFiles = files;
         Word word = initWord();
         for(int i=0; i<files.size(); i++){
