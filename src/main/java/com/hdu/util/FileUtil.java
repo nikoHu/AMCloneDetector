@@ -1,7 +1,11 @@
 package com.hdu.util;
 
 
+import com.hdu.bean.Pair;
+import com.hdu.common.Constants;
 import com.hdu.conf.Config;
+import lombok.NonNull;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,6 +13,8 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class FileUtil {
 
@@ -58,5 +64,29 @@ public class FileUtil {
         public List<File> getFileLists() {
             return fileLists;
         }
+    }
+
+    public static void outputBuffer(@NonNull List<Pair> pairList) throws IOException {
+        //区分不同类型的pair
+        List<Pair> type1Pairs = pairList.parallelStream().filter(p -> p.getType() == 1).collect(Collectors.toList());
+        List<Pair> type2Pairs = pairList.parallelStream().filter(p -> p.getType() == 2).collect(Collectors.toList());
+
+        //输出type1 pair
+        List<String> lines = type1Pairs.parallelStream().map(new Function<Pair, String>() {
+            @Override
+            public String apply(Pair pair) {
+                return pair.getId1() + "," + pair.getId2();
+            }
+        }).collect(Collectors.toList());
+        FileUtils.writeLines(new File(Constants.COMMON_PAIR_OUTPUT_FILE), lines, true);
+
+        //输出type2 pair
+        lines = type2Pairs.parallelStream().map(new Function<Pair, String>() {
+            @Override
+            public String apply(Pair pair) {
+                return pair.getId1() + "," + pair.getId2();
+            }
+        }).collect(Collectors.toList());
+        FileUtils.writeLines(new File(Constants.SPECIAL_PAIR_OUTPUT_FILE), lines, true);
     }
 }

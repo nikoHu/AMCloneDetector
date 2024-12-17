@@ -141,13 +141,7 @@ public class SRCFProcessor {
         log.info("find pairs");
         List<Pair> pairList = comparator.findPairsByAsync(Measure.measureList);
 //        List<Pair> pairList = comparator.findPairs(Measure.measureList);
-        //输出
-        log.info("output pairs");
-        try {
-            output(pairList);
-        }catch (IOException e){
-            e.printStackTrace();
-        }
+        // 2024/12/17 一个buffer检测完之后直接写文件，不在最后统一写，解决结果过大导致的OOM问题
 
         long end = System.currentTimeMillis();
         log.info("task finish, time cost: {}", Duration.ofMillis(end - start).toString());

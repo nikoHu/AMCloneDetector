@@ -3,7 +3,10 @@ package com.hdu.manager;
 import com.hdu.bean.Measure;
 import com.hdu.bean.Pair;
 import com.hdu.conf.Config;
+import com.hdu.util.FileUtil;
 import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,8 +45,9 @@ public class StringComparator  implements Comparator {
         int buffer = Config.Buffer;
         IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
         List<String> ids = generator.generate(buffer);
-        int cnt = 0;
+        long cnt = 0;
         while (ids.size() != 0){
+            List<Pair> bufferPairs = new ArrayList<>();
             ids.parallelStream().forEach(new Consumer<String>() {
                 @Override
                 public void accept(String s) {
@@ -93,10 +97,18 @@ public class StringComparator  implements Comparator {
                     int type = (oneCounter < 3)? 1: 2;
 
                     lock.lock();
-                    pairs.add(new Pair(measure1.getId(), measure2.getId(), type));
+                    bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
                     lock.unlock();
                 }
             });
+            lock.lock();
+            try {
+                FileUtil.outputBuffer(bufferPairs);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
+            }
             cnt += ids.size();
             log.info("processing {}", cnt);
             ids = generator.generate(buffer);
@@ -153,8 +165,9 @@ public class StringComparator  implements Comparator {
             List<String> ids;
             List<Pair> pairs = new ArrayList<>();
             // 全部id对的数量
-            int cnt = 0;
+            long cnt = 0;
             while ((ids=generateIDs()).size() != 0){
+                List<Pair> bufferPairs = new ArrayList<>();
                 ids.parallelStream().forEach(new Consumer<String>() {
                     @Override
                     public void accept(String s) {
@@ -204,18 +217,20 @@ public class StringComparator  implements Comparator {
                         int type = (oneCounter < 3)? 1: 2;
 
                         lock.lock();
-                        pairs.add(new Pair(measure1.getId(), measure2.getId(), type));
+                        bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
                         lock.unlock();
                     }
                 });
+                resultLock.lock();
+                try {
+                    FileUtil.outputBuffer(bufferPairs);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    resultLock.unlock();
+                }
                 cnt += ids.size();
                 log.info(Thread.currentThread().getName()+ " processing {}", cnt);
-            }
-            resultLock.lock();
-            try {
-                allPairs.addAll(pairs);
-            } finally {
-                resultLock.unlock();
             }
             countDownLatch.countDown();
         }
