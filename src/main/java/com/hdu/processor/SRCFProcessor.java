@@ -18,9 +18,6 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,9 +49,9 @@ public class SRCFProcessor {
             e.printStackTrace();
             System.exit(2);
         }
-        Path resultDir = Paths.get(Constants.RESULT_PATH);
+
         try {
-            deleteDirectory(resultDir);
+            FileUtil.deleteDirectory(Constants.RESULT_PATH);
             log.info("Directory deleted successfully.");
         } catch (IOException e) {
             e.printStackTrace();
@@ -237,18 +234,4 @@ public class SRCFProcessor {
         return word;
     }
 
-    private void deleteDirectory(Path directoryPath) throws IOException {
-        if (Files.exists(directoryPath)) {
-            // 删除目录及其内容
-            Files.walk(directoryPath)
-                    .sorted((path1, path2) -> path2.compareTo(path1)) // 反向排序以确保文件夹在文件之后删除
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
-        }
-    }
 }

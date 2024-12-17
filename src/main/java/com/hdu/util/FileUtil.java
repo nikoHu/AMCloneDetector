@@ -24,6 +24,22 @@ public class FileUtil {
         return filterFileVisitor.getFileLists();
     }
 
+    public static void deleteDirectory(String dir) throws IOException {
+        Path directoryPath = Paths.get(dir);
+        if (Files.exists(directoryPath)) {
+            // 删除目录及其内容
+            Files.walk(directoryPath)
+                    .sorted((path1, path2) -> path2.compareTo(path1)) // 反向排序以确保文件夹在文件之后删除
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        }
+    }
+
     private static class FilterFileVisitor extends SimpleFileVisitor<Path> {
 
         private List<File> fileLists = new ArrayList<>();
