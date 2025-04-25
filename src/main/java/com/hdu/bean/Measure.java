@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Data
@@ -21,7 +22,7 @@ public class Measure {
     private List<Long> hash;
     private List<Byte> token;
 
-    public static List<Measure> measureList = new ArrayList<>();
+    public static List<Measure> measureList = new CopyOnWriteArrayList<>();
     public static AtomicInteger measureID = new AtomicInteger(0);
 
     public Measure() {
