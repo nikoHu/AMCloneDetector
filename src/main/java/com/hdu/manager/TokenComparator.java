@@ -63,7 +63,7 @@ public class TokenComparator implements Comparator{
                     Measure measure1 = measureList.get(id1);
                     Measure measure2 = measureList.get(id2);
                     float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                    if (lineGapDis < Config.LineGapDis){
+                    if (lineGapDis > Config.LineGapDis){
                         return;
                     }
 
@@ -181,7 +181,7 @@ public class TokenComparator implements Comparator{
                         Measure measure1 = measureList.get(id1);
                         Measure measure2 = measureList.get(id2);
                         float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                        if (lineGapDis < Config.LineGapDis){
+                        if (lineGapDis > Config.LineGapDis){
                             return;
                         }
 

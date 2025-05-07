@@ -36,7 +36,7 @@ public class MeasureIDPairGenerator extends IDPairGenerator{
                 Measure m1 = measureList.get(m);
                 Measure m2 = measureList.get(n);
                 float lineGapDis = Math.abs(m1.getLineCount() - m2.getLineCount()) *1f/ Math.min(m1.getLineCount(), m2.getLineCount());
-                if (lineGapDis < this.lineGapDis){
+                if (lineGapDis > this.lineGapDis){
                     continue;
                 }
                 pairs.add(m + "," + n);
