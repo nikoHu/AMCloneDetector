@@ -45,7 +45,7 @@ public class SimhashComparator implements Comparator{
         }
 
         int buffer = Config.Buffer;
-        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
+        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis);
         List<String> ids = generator.generate(buffer);
         long cnt = 0;
 
@@ -60,7 +60,7 @@ public class SimhashComparator implements Comparator{
                     Measure measure1 = measureList.get(id1);
                     Measure measure2 = measureList.get(id2);
                     float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                    if (lineGapDis < Config.LineGapDisMin || lineGapDis >= Config.LineGapDisMax){
+                    if (lineGapDis < Config.LineGapDis){
                         return;
                     }
 
@@ -120,7 +120,7 @@ public class SimhashComparator implements Comparator{
             return pairs;
         }
         int buffer = Config.Buffer;
-        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis, Config.LineGapDisMax, Config.LineGapDisMin);
+        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis);
 
         ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum); // 创建两个线程的线程池
         for (int i = 0; i < Config.ThreadNum; i++){
@@ -177,7 +177,7 @@ public class SimhashComparator implements Comparator{
                         Measure measure1 = measureList.get(id1);
                         Measure measure2 = measureList.get(id2);
                         float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                        if (lineGapDis < Config.LineGapDisMin || lineGapDis >= Config.LineGapDisMax){
+                        if (lineGapDis < Config.LineGapDis){
                             return;
                         }
 

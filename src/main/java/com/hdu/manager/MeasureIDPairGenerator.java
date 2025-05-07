@@ -8,19 +8,15 @@ public class MeasureIDPairGenerator extends IDPairGenerator{
 
     private List<Measure> measureList;
     private float lineGapDis;
-    private float lineGapDisMax;
-    private float lineGapDisMin;
 
     public MeasureIDPairGenerator(int size) {
         super(size);
     }
 
-    public MeasureIDPairGenerator(List<Measure> measureList, float lineGapDis, float lineGapDisMax, float lineGapDisMin) {
+    public MeasureIDPairGenerator(List<Measure> measureList, float lineGapDis) {
         super(measureList.size());
         this.measureList = measureList;
         this.lineGapDis = lineGapDis;
-        this.lineGapDisMax = lineGapDisMax;
-        this.lineGapDisMin = lineGapDisMin;
     }
 
     @Override
@@ -40,7 +36,7 @@ public class MeasureIDPairGenerator extends IDPairGenerator{
                 Measure m1 = measureList.get(m);
                 Measure m2 = measureList.get(n);
                 float lineGapDis = Math.abs(m1.getLineCount() - m2.getLineCount()) *1f/ Math.min(m1.getLineCount(), m2.getLineCount());
-                if (lineGapDis < this.lineGapDisMin || lineGapDis >= this.lineGapDisMax){
+                if (lineGapDis < this.lineGapDis){
                     continue;
                 }
                 pairs.add(m + "," + n);
