@@ -119,7 +119,7 @@ public class StringComparator  implements Comparator {
 
     @Override
     public List<Pair> findPairsByAsync(final List<Measure> measureList) {
-        List<Pair> pairs = new ArrayList<>();
+        List<Pair> pairs = Collections.synchronizedList(new ArrayList<>());
         if (measureList.size() < 2){
             return pairs;
         }
@@ -128,7 +128,7 @@ public class StringComparator  implements Comparator {
 
         ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum); // 创建ThreadNum个线程的线程池
         for (int i = 0; i < Config.ThreadNum; i++){
-            executor.submit(new GenerateIDs(generator, buffer, measureList,i));
+            executor.submit(new GenerateIDs(generator, buffer, measureList,allPairs,i));
         }
 
         try {
@@ -147,94 +147,98 @@ public class StringComparator  implements Comparator {
         private IDPairGenerator generator;
         private int buffer;
         private List<Measure> measureList;
+        private List<Pair> resultPairs;
         private int cpuid;
-        public GenerateIDs(IDPairGenerator generator, int buffer, List<Measure> measureList,int cpuid) {
+
+        public GenerateIDs(IDPairGenerator generator, int buffer, List<Measure> measureList, List<Pair> resultPairs, int cpuid) {
             this.generator = generator;
             this.buffer = buffer;
             this.measureList = measureList;
             this.cpuid = cpuid;
+            this.resultPairs = resultPairs;
         }
 
-        public List<String> generateIDs(){
-            List<String> ids = new ArrayList<>();
+        public List<String> generateIDs() {
             synchronized (generateIDsLock) {
-                ids = generator.generate(buffer);
+                return generator.generate(buffer);
             }
-            return ids;
         }
 
         @Override
         public void run() {
             CpuAffinity.bindToCpu(cpuid);
             List<String> ids;
-            List<Pair> pairs = new ArrayList<>();
             // 全部id对的数量
             long cnt = 0;
-            while ((ids=generateIDs()).size() != 0){
+            while (!(ids = generateIDs()).isEmpty()) {
                 List<Pair> bufferPairs = new ArrayList<>();
-                ids.parallelStream().forEach(new Consumer<String>() {
-                    @Override
-                    public void accept(String s) {
-                        String[] tmp = s.split(",");
-                        int id1 = Integer.parseInt(tmp[0]);
-                        int id2 = Integer.parseInt(tmp[1]);
-                        Measure measure1 = measureList.get(id1);
-                        Measure measure2 = measureList.get(id2);
-                        float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                        if (lineGapDis > Config.LineGapDis){
-                            return;
-                        }
-
-                        int sameCounter = 0;
-                        StringBuilder sequence = new StringBuilder();
-                        List<String> codes2 = new ArrayList<String>(measure2.getCode());
-                        List<String> codes1 = new ArrayList<String>(measure1.getCode());
-                        for (int i = 0; i < codes2.size(); i++){
-                            boolean same = false;
-                            for (int j = 0; j < codes1.size(); j++){
-                                if (codes1.get(j).equals(codes2.get(i))){
-                                    sameCounter++;
-                                    same = true;
-                                    codes2.remove(i);
-                                    codes1.remove(j);
-                                    i --;
-                                    break;
-                                }
-                            }
-                            if(same){
-                                sequence.append("1");
-                            }else{
-                                sequence.append("0");
-                            }
-                        }
-
-                        float similarity = sameCounter *1f / measure1.getCode().size();
-                        if(similarity < Config.Similarity){
-                            return;
-                        }
-
-                        Matcher matcher = Pattern.compile("[1]+").matcher(sequence);
-                        int oneCounter = 0;
-                        while (matcher.find()){
-                            oneCounter++;
-                        }
-                        int type = (oneCounter < 3)? 1: 2;
-
-                        lock.lock();
-                        bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
-                        lock.unlock();
+                for (String s : ids) {
+                    String[] tmp = s.split(",");
+                    int id1 = Integer.parseInt(tmp[0]);
+                    int id2 = Integer.parseInt(tmp[1]);
+                    Measure measure1 = measureList.get(id1);
+                    Measure measure2 = measureList.get(id2);
+                    float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) * 1f / Math.min(measure1.getLineCount(), measure2.getLineCount());
+                    if (lineGapDis > Config.LineGapDis) {
+                        continue;
                     }
-                });
-                resultLock.lock();
+
+                    int sameCounter = 0;
+                    StringBuilder sequence = new StringBuilder();
+                    List<String> codes1 = new ArrayList<>(measure1.getCode());
+                    List<String> codes2 = new ArrayList<>(measure2.getCode());
+
+                    int totalLines = measure1.getCode().size();
+                    int minMatchesRequired = (int) Math.ceil(Config.Similarity * totalLines);
+
+                    for (int i = 0; i < codes2.size(); i++) {
+                        boolean same = false;
+                        for (int j = 0; j < codes1.size(); j++) {
+                            if (codes2.get(i).equals(codes1.get(j))) {
+                                sameCounter++;
+                                same = true;
+                                codes1.remove(j);
+                                break;
+                            }
+                        }
+
+                        if (same) {
+                            sequence.append("1");
+                        } else {
+                            sequence.append("0");
+                        }
+
+                        // 提前终止判断
+                        int remaining = codes2.size() - (i + 1);
+                        if (sameCounter + remaining < minMatchesRequired) {
+                            break; // 无法满足最小相似度
+                        }
+                    }
+
+                    float similarity = sameCounter * 1f / measure1.getCode().size();
+                    if (similarity < Config.Similarity) {
+                        continue;
+                    }
+
+                    Matcher matcher = Pattern.compile("[1]+").matcher(sequence);
+                    int oneCounter = 0;
+                    while (matcher.find()) {
+                        oneCounter++;
+                    }
+                    int type = (oneCounter < 3) ? 1 : 2;
+
+                    bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
+
+                }
+                resultPairs.addAll(bufferPairs);
                 try {
                     FileUtil.outputBuffer(bufferPairs);
                 } catch (IOException e) {
                     e.printStackTrace();
-                } finally {
-                    resultLock.unlock();
                 }
                 cnt += ids.size();
-                log.info(Thread.currentThread().getName()+ " processing {}", cnt);
+                log.info(Thread.currentThread().getName() + " processing {}", cnt);
+
             }
             countDownLatch.countDown();
         }
