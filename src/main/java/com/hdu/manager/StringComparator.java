@@ -4,6 +4,7 @@ import com.hdu.bean.Measure;
 import com.hdu.bean.Pair;
 import com.hdu.conf.Config;
 import com.hdu.util.FileUtil;
+import com.hdu.util.CpuAffinity;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -127,7 +128,7 @@ public class StringComparator  implements Comparator {
 
         ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum); // 创建ThreadNum个线程的线程池
         for (int i = 0; i < Config.ThreadNum; i++){
-            executor.submit(new GenerateIDs(generator, buffer, measureList));
+            executor.submit(new GenerateIDs(generator, buffer, measureList,i));
         }
 
         try {
@@ -146,10 +147,12 @@ public class StringComparator  implements Comparator {
         private IDPairGenerator generator;
         private int buffer;
         private List<Measure> measureList;
-        public GenerateIDs(IDPairGenerator generator, int buffer, List<Measure> measureList){
+        private int cpuid;
+        public GenerateIDs(IDPairGenerator generator, int buffer, List<Measure> measureList,int cpuid) {
             this.generator = generator;
             this.buffer = buffer;
             this.measureList = measureList;
+            this.cpuid = cpuid;
         }
 
         public List<String> generateIDs(){
@@ -162,6 +165,7 @@ public class StringComparator  implements Comparator {
 
         @Override
         public void run() {
+            CpuAffinity.bindToCpu(cpuid);
             List<String> ids;
             List<Pair> pairs = new ArrayList<>();
             // 全部id对的数量
