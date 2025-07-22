@@ -108,6 +108,8 @@ public class SRCFProcessor {
             Thread.currentThread().interrupt();
         }
 
+        long middle = System.currentTimeMillis();
+        log.info("task finish, time cost: {}", Duration.ofMillis(middle - start).toString());
         //输出measureList
         log.info("outputting to {}", Constants.MEASURE_INDEX_FILENAME);
         try {

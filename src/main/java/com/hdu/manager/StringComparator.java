@@ -8,6 +8,7 @@ import com.hdu.util.CpuAffinity;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -139,6 +140,11 @@ public class StringComparator  implements Comparator {
         // 关闭线程池
         executor.shutdown();
 
+        try{
+            FileUtil.outputBuffer(allPairs);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
         // 输出整合后的所有 pairs
         return allPairs;
     }
@@ -171,7 +177,7 @@ public class StringComparator  implements Comparator {
             // 全部id对的数量
             long cnt = 0;
             while ((ids=generateIDs()).size() != 0){
-                List<Pair> bufferPairs = new ArrayList<>();
+                List<Pair> bufferPairs = Collections.synchronizedList(new ArrayList<>());
                 ids.parallelStream().forEach(new Consumer<String>() {
                     @Override
                     public void accept(String s) {
@@ -184,62 +190,65 @@ public class StringComparator  implements Comparator {
                         if (lineGapDis > Config.LineGapDis){
                             return;
                         }
-
+                        Map<String, Integer> freqMap = new HashMap<>();
                         int sameCounter = 0;
-                        StringBuilder sequence = new StringBuilder();
-                        List<String> codes2 = new ArrayList<String>(measure2.getCode());
-                        List<String> codes1 = new ArrayList<String>(measure1.getCode());
-                        int totalLines = measure1.getCode().size();
-                        int minMatchesRequired = (int) Math.ceil(Config.Similarity * totalLines);
-                        for (int i = 0; i < codes2.size(); i++){
-                            boolean same = false;
-                            for (int j = 0; j < codes1.size(); j++){
-                                if (codes1.get(j).equals(codes2.get(i))){
-                                    sameCounter++;
-                                    same = true;
-                                    codes1.remove(j);
-                                    break;
-                                }
+                        int minRequired = (int) Math.ceil(Config.Similarity * measure1.getCode().size());
+                        int[] matchSequence = new int[measure2.getCode().size()];
+                        List<String> code2 = measure2.getCode();
+                        for (int i = 0; i < code2.size(); i++) {
+                            String line = code2.get(i);
+                            Integer count = freqMap.get(line);
+                            if (count != null && count > 0) {
+                                sameCounter++;
+                                matchSequence[i] = 1;
+                                freqMap.put(line, count - 1);
                             }
-                            if(same){
-                                sequence.append("1");
-                            }else{
-                                sequence.append("0");
-                            }
-                            // 提前终止判断
-                            int remaining = codes2.size() - (i + 1);
-                            if (sameCounter + remaining < minMatchesRequired) {
-                                break; // 无法满足最小相似度
-                            }
+                            // 提前终止检查
+                            if (sameCounter + (code2.size() - i - 1) < minRequired) break;
                         }
-
                         float similarity = sameCounter *1f / measure1.getCode().size();
                         if(similarity < Config.Similarity){
                             return;
                         }
 
-                        Matcher matcher = Pattern.compile("[1]+").matcher(sequence);
                         int oneCounter = 0;
-                        while (matcher.find()){
-                            oneCounter++;
+                        boolean inBlock = false;
+                        for (int match : matchSequence) {
+                            if (match == 1) {
+                                if (!inBlock) {
+                                    oneCounter++;
+                                    inBlock = true;
+                                }
+                            } else {
+                                inBlock = false;
+                            }
                         }
                         int type = (oneCounter < 3)? 1: 2;
 
-                        lock.lock();
                         bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
-                        lock.unlock();
+
                     }
                 });
-                resultLock.lock();
-                try {
-                    FileUtil.outputBuffer(bufferPairs);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    resultLock.unlock();
-                }
+                pairs.addAll(bufferPairs);
+//                resultLock.lock();
+//                try {
+//                    FileUtil.outputBuffer(bufferPairs);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                } finally {
+//                    resultLock.unlock();
+//                }
                 cnt += ids.size();
-                log.info(Thread.currentThread().getName()+ " processing {}", cnt);
+//                if (cnt % (buffer * 100) == 0) {
+//                    log.info("{} processing {}", Thread.currentThread().getName(), cnt);
+//                }
+
+            }
+            resultLock.lock();
+            try {
+                allPairs.addAll(pairs);
+            }finally {
+                resultLock.unlock();
             }
             countDownLatch.countDown();
         }
