@@ -2,14 +2,10 @@ package com.hdu.manager;
 
 import com.hdu.bean.Measure;
 import com.hdu.bean.Pair;
-import com.hdu.common.Constants;
 import com.hdu.conf.Config;
 import com.hdu.util.FileUtil;
-import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,90 +13,159 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @SuppressWarnings("Duplicates")
 @Slf4j
-public class TokenComparator implements Comparator{
+public class TokenComparator implements Comparator {
 
     private ReentrantLock lock = new ReentrantLock();
     // 用于向最终结果添加子线程检测结果的锁
     private ReentrantLock resultLock = new ReentrantLock();
     // 用于生成ID对的锁
     private static final Object generateIDsLock = new Object();
-    // 已处理id对的数量
-    private static AtomicLong dealCount = new AtomicLong(0);
+
+    // ====== 进度统计 ======
+    private static final AtomicLong dealCount = new AtomicLong(0);
+    private static final AtomicLong totalPairCount = new AtomicLong(1);
+    private static final AtomicLong nextReportPercent = new AtomicLong(10);
+
+    private static void reportProgress(long processed) {
+        long total = totalPairCount.get();
+        if (total <= 0) return;
+
+        while (true) {
+            long p = nextReportPercent.get(); // 10,20,...,100
+            if (p > 100) return;
+
+            long threshold = (total * p) / 100;
+            if (processed >= threshold) {
+                if (nextReportPercent.compareAndSet(p, p + 10)) {
+                    log.info("progress {}% (processed {}/{})", p, processed, total);
+                }
+            } else {
+                return;
+            }
+        }
+    }
+
+    private static void reportFinalProgress() {
+        long processed = dealCount.get();
+        long total = totalPairCount.get();
+        double percent = (total <= 0) ? 100.0 : (processed * 100.0 / total);
+        log.info(String.format("FINAL progress %.2f%% (processed %d/%d)", percent, processed, total));
+    }
+    // =====================
 
     private static final List<Pair> allPairs = Collections.synchronizedList(new ArrayList<>());
-    CountDownLatch countDownLatch = new CountDownLatch(Config.ThreadNum);
 
     @Override
     public List<Pair> findPairs(final List<Measure> measureList) {
         List<Pair> pairs = new ArrayList<>();
-        if (measureList.size() < 2){
+        if (measureList.size() < 2) {
             return pairs;
         }
 
         int buffer = Config.Buffer;
-        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis);
+        IDPairGenerator generator = new InvertedIndexMeasureIDPairGenerator(measureList, Config.LineGapDis);
         List<String> ids = generator.generate(buffer);
+
+        // ====== 初始化总量与进度计数器 ======
+        long n = measureList.size();
+        totalPairCount.set(n * (n - 1) / 2);
+        dealCount.set(0);
+        nextReportPercent.set(10);
+        // ======================================
+
         long cnt = 0;
-        while (ids.size() != 0){
+        while (ids.size() != 0) {
             List<Pair> bufferPairs = new ArrayList<>();
             ids.parallelStream().forEach(new Consumer<String>() {
                 @Override
                 public void accept(String s) {
+
+                    // ====== 进度更新 ======
+                    long processed = dealCount.incrementAndGet();
+                    reportProgress(processed);
+                    // ======================
+
                     String[] tmp = s.split(",");
                     int id1 = Integer.parseInt(tmp[0]);
                     int id2 = Integer.parseInt(tmp[1]);
                     Measure measure1 = measureList.get(id1);
                     Measure measure2 = measureList.get(id2);
-                    float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                    if (lineGapDis > Config.LineGapDis){
+
+                    // ====== FIX：除零保护 ======
+                    int minLine = Math.min(measure1.getLineCount(), measure2.getLineCount());
+                    if (minLine <= 0) {
+                        return;
+                    }
+                    float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) * 1f / minLine;
+                    // ============================
+
+                    if (lineGapDis > Config.LineGapDis) {
                         return;
                     }
 
                     int sameCounter = 0;
                     StringBuilder sequence = new StringBuilder();
-                    for (Byte token2: measure2.getToken()){
+                    for (Byte token2 : measure2.getToken()) {
                         boolean same = false;
-                        for (Byte token1: measure1.getToken()){
-                            if (token1.equals(token2)){
+                        for (Byte token1 : measure1.getToken()) {
+                            if (token1.equals(token2)) {
                                 sameCounter++;
                                 same = true;
                             }
                         }
-                        if(same){
+                        if (same) {
                             sequence.append("1");
-                        }else{
+                        } else {
                             sequence.append("0");
                         }
                     }
 
-                    float similarity = sameCounter *1f / measure1.getCode().size();
-                    if(similarity < Config.Similarity){
+                    // ====== 引入 Denominator：与 StringComparator 一致 ======
+                    int compareLine;
+                    switch (Config.Denominator) {
+                        case 1:
+                            compareLine = measure1.getCode().size();
+                            break;
+                        case 2:
+                            compareLine = (measure1.getCode().size() + measure2.getCode().size()) / 2;
+                            break;
+                        case 3:
+                            compareLine = measure2.getCode().size();
+                            break;
+                        default:
+                            compareLine = measure1.getCode().size();
+                    }
+                    if (compareLine <= 0) {
+                        return;
+                    }
+                    float similarity = sameCounter * 1f / compareLine;
+                    // ========================================================
+
+                    if (similarity < Config.Similarity) {
                         return;
                     }
 
                     Matcher matcher = Pattern.compile("[1]+").matcher(sequence);
                     int oneCounter = 0;
-                    while (matcher.find()){
+                    while (matcher.find()) {
                         oneCounter++;
                     }
-                    int type = (oneCounter < 3)? 1: 2;
+                    int type = (oneCounter < 3) ? 1 : 2;
 
                     lock.lock();
                     bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
                     lock.unlock();
                 }
             });
+
             lock.lock();
             try {
                 FileUtil.outputBuffer(bufferPairs);
@@ -109,40 +174,60 @@ public class TokenComparator implements Comparator{
             } finally {
                 lock.unlock();
             }
+
+            // ====== FIX：同步版要把结果累积进返回 pairs ======
+            pairs.addAll(bufferPairs);
+            // ==================================================
+
             cnt += ids.size();
             log.info("processing {}", cnt);
             ids = generator.generate(buffer);
         }
+
+        reportFinalProgress();
         return pairs;
     }
 
     @Override
     public List<Pair> findPairsByAsync(final List<Measure> measureList) {
-
         List<Pair> pairs = new ArrayList<>();
-        if (measureList.size() < 2){
+        if (measureList.size() < 2) {
             return pairs;
         }
-        int buffer = Config.Buffer;
-        IDPairGenerator generator = new MeasureIDPairGenerator(measureList, Config.LineGapDis);
 
-        ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum); // 创建两个线程的线程池
-        for (int i = 0; i < Config.ThreadNum; i++){
-            executor.submit(new GenerateIDs(generator, buffer, measureList));
+        int buffer = Config.Buffer;
+        IDPairGenerator generator = new InvertedIndexMeasureIDPairGenerator(measureList, Config.LineGapDis);
+
+        // ====== 初始化总量与进度计数器 ======
+        long n = measureList.size();
+        totalPairCount.set(n * (n - 1) / 2);
+        dealCount.set(0);
+        nextReportPercent.set(10);
+        // ======================================
+
+        // ====== FIX：每次调用都重新 new latch ======
+        CountDownLatch countDownLatch = new CountDownLatch(Config.ThreadNum);
+        // ==========================================
+
+        // ====== FIX：清空，避免残留 ======
+        allPairs.clear();
+        // ===============================
+
+        ExecutorService executor = Executors.newFixedThreadPool(Config.ThreadNum);
+        for (int i = 0; i < Config.ThreadNum; i++) {
+            executor.submit(new GenerateIDs(generator, buffer, measureList, countDownLatch));
         }
 
-        executor.shutdown(); // 关闭线程池
-
-        // 等待所有线程完成
         try {
             countDownLatch.await();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Thread.currentThread().interrupt();
         }
-        // 关闭线程池
+
+        reportFinalProgress();
+
         executor.shutdown();
 
-        // 输出整合后的所有 pairs
         return allPairs;
     }
 
@@ -150,13 +235,16 @@ public class TokenComparator implements Comparator{
         private IDPairGenerator generator;
         private int buffer;
         private List<Measure> measureList;
-        public GenerateIDs(IDPairGenerator generator, int buffer, List<Measure> measureList){
+        private CountDownLatch countDownLatch;
+
+        public GenerateIDs(IDPairGenerator generator, int buffer, List<Measure> measureList, CountDownLatch countDownLatch) {
             this.generator = generator;
             this.buffer = buffer;
             this.measureList = measureList;
+            this.countDownLatch = countDownLatch;
         }
 
-        public List<String> generateIDs(){
+        public List<String> generateIDs() {
             List<String> ids = new ArrayList<>();
             synchronized (generateIDsLock) {
                 ids = generator.generate(buffer);
@@ -166,71 +254,115 @@ public class TokenComparator implements Comparator{
 
         @Override
         public void run() {
-            List<String> ids = null;
-            List<Pair> pairs = new ArrayList<>();
-            // 全部id对的数量
-            long cnt = 0;
-            while ((ids=generateIDs()).size() != 0) {
-                List<Pair> bufferPairs = new ArrayList<>();
-                ids.parallelStream().forEach(new Consumer<String>() {
-                    @Override
-                    public void accept(String s) {
-                        String[] tmp = s.split(",");
-                        int id1 = Integer.parseInt(tmp[0]);
-                        int id2 = Integer.parseInt(tmp[1]);
-                        Measure measure1 = measureList.get(id1);
-                        Measure measure2 = measureList.get(id2);
-                        float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) *1f/ Math.min(measure1.getLineCount(), measure2.getLineCount());
-                        if (lineGapDis > Config.LineGapDis){
-                            return;
-                        }
+            try {
+                List<String> ids = null;
+                long cnt = 0;
 
-                        int sameCounter = 0;
-                        StringBuilder sequence = new StringBuilder();
-                        for (Byte token2: measure2.getToken()){
-                            boolean same = false;
-                            for (Byte token1: measure1.getToken()){
-                                if (token1.equals(token2)){
-                                    sameCounter++;
-                                    same = true;
+                while ((ids = generateIDs()).size() != 0) {
+                    List<Pair> bufferPairs = new ArrayList<>();
+                    ids.parallelStream().forEach(new Consumer<String>() {
+                        @Override
+                        public void accept(String s) {
+
+                            // ====== 进度更新 ======
+                            long processed = dealCount.incrementAndGet();
+                            reportProgress(processed);
+                            // ======================
+
+                            String[] tmp = s.split(",");
+                            int id1 = Integer.parseInt(tmp[0]);
+                            int id2 = Integer.parseInt(tmp[1]);
+                            Measure measure1 = measureList.get(id1);
+                            Measure measure2 = measureList.get(id2);
+
+                            // ====== FIX：除零保护 ======
+                            int minLine = Math.min(measure1.getLineCount(), measure2.getLineCount());
+                            if (minLine <= 0) {
+                                return;
+                            }
+                            float lineGapDis = Math.abs(measure1.getLineCount() - measure2.getLineCount()) * 1f / minLine;
+                            // ============================
+
+                            if (lineGapDis > Config.LineGapDis) {
+                                return;
+                            }
+
+                            int sameCounter = 0;
+                            StringBuilder sequence = new StringBuilder();
+                            for (Byte token2 : measure2.getToken()) {
+                                boolean same = false;
+                                for (Byte token1 : measure1.getToken()) {
+                                    if (token1.equals(token2)) {
+                                        sameCounter++;
+                                        same = true;
+                                    }
+                                }
+                                if (same) {
+                                    sequence.append("1");
+                                } else {
+                                    sequence.append("0");
                                 }
                             }
-                            if(same){
-                                sequence.append("1");
-                            }else{
-                                sequence.append("0");
+
+                            // ====== 引入 Denominator：与 StringComparator 一致 ======
+                            int compareLine;
+                            switch (Config.Denominator) {
+                                case 1:
+                                    compareLine = measure1.getCode().size();
+                                    break;
+                                case 2:
+                                    compareLine = (measure1.getCode().size() + measure2.getCode().size()) / 2;
+                                    break;
+                                case 3:
+                                    compareLine = measure2.getCode().size();
+                                    break;
+                                default:
+                                    compareLine = measure1.getCode().size();
                             }
-                        }
+                            if (compareLine <= 0) {
+                                return;
+                            }
+                            float similarity = sameCounter * 1f / compareLine;
+                            // ========================================================
 
-                        float similarity = sameCounter *1f / measure1.getCode().size();
-                        if(similarity < Config.Similarity){
-                            return;
-                        }
+                            if (similarity < Config.Similarity) {
+                                return;
+                            }
 
-                        Matcher matcher = Pattern.compile("[1]+").matcher(sequence);
-                        int oneCounter = 0;
-                        while (matcher.find()){
-                            oneCounter++;
-                        }
-                        int type = (oneCounter < 3)? 1: 2;
+                            Matcher matcher = Pattern.compile("[1]+").matcher(sequence);
+                            int oneCounter = 0;
+                            while (matcher.find()) {
+                                oneCounter++;
+                            }
+                            int type = (oneCounter < 3) ? 1 : 2;
 
-                        lock.lock();
-                        bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
-                        lock.unlock();
+                            lock.lock();
+                            bufferPairs.add(new Pair(measure1.getId(), measure2.getId(), type));
+                            lock.unlock();
+                        }
+                    });
+
+                    resultLock.lock();
+                    try {
+                        FileUtil.outputBuffer(bufferPairs);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        resultLock.unlock();
                     }
-                });
-                resultLock.lock();
-                try {
-                    FileUtil.outputBuffer(bufferPairs);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    resultLock.unlock();
+
+                    // ====== FIX：汇总到 allPairs ======
+                    allPairs.addAll(bufferPairs);
+                    // ===============================
+
+                    cnt += ids.size();
+                    log.info(Thread.currentThread().getName() + " processing {}", cnt);
                 }
-                cnt += ids.size();
-                log.info(Thread.currentThread().getName()+ " processing {}", cnt);
+            } finally {
+                // ====== FIX：finally countDown，避免异常卡死 ======
+                countDownLatch.countDown();
+                // ==================================================
             }
-            countDownLatch.countDown();
         }
     }
 }

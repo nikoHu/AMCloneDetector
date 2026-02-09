@@ -10,7 +10,7 @@ public class Config {
 
     public static final String CONFIG_FILE = "cloneDetector.properties";
     private static Properties properties = new Properties();
-
+    public static Integer Denominator = 1;
     public static Integer CompareType = 1;
     public static Float Similarity = 0.5f;
     public static Float LineGapDis = 0.5f;
@@ -30,6 +30,7 @@ public class Config {
      * @throws IOException
      */
     public static void save() throws IOException {
+        properties.setProperty("denominator",Denominator.toString());
         properties.setProperty("compare-type", CompareType.toString());
         properties.setProperty("similarity", Similarity.toString());
         properties.setProperty("line-gap-dis", LineGapDis.toString());
@@ -54,7 +55,7 @@ public class Config {
         FileReader reader = new FileReader(CONFIG_FILE);
         properties.load(reader);
         reader.close();
-
+        Denominator = Integer.parseInt(properties.getProperty("denominator"));
         CompareType = Integer.parseInt(properties.getProperty("compare-type"));
         Similarity = Float.parseFloat(properties.getProperty("similarity"));
         LineGapDis = Float.parseFloat(properties.getProperty("line-gap-dis"));
